@@ -1,0 +1,2 @@
+LangChain is a framework for building applications with LLMs.
+It supports components such as prompt templates, chains, agents, and memory.
