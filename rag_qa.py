@@ -62,7 +62,7 @@ def init_qa_system(silent=False):
     vectorstore = Chroma.from_documents(documents=documents, embedding=embeddings)
     
     # 创建QA链
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+    llm = ChatOpenAI(model_name="gpt-4o-2024-08-06", temperature=0)
     memory = ConversationBufferMemory(
         memory_key="chat_history",
         return_messages=True,
