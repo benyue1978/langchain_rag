@@ -10,7 +10,13 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 import logging
 from dataclasses import dataclass
-import datetime
+from uuid import uuid4
+from dotenv import load_dotenv
+import time
+from datetime import datetime
+
+# 加载环境变量
+load_dotenv()
 
 from chinese_text_splitter import ChineseTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -18,11 +24,10 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.chains import ConversationalRetrievalChain
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
-from langchain.memory import ConversationBufferMemory
-from langchain.schema.runnable import RunnableLambda
 from langsmith import Client
 
 from pdf_processor import PDFProcessor, PDFProcessorError
+from langsmith.evaluation import RunEvaluator
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -119,17 +124,29 @@ class RAGQASystem:
             
             # 创建向量存储
             embeddings = OpenAIEmbeddings()
-            vectorstore = Chroma.from_texts(
-                texts=texts,
-                embedding=embeddings,
-                persist_directory="chroma_db"
-            )
+            persist_dir = Path("chroma_db")
             
-            # 设置记忆
-            self.memory = ConversationBufferMemory(
-                memory_key="chat_history",
-                return_messages=True
-            )
+            # 确保持久化目录存在
+            persist_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 初始化或加载向量存储
+            if (persist_dir / "chroma.sqlite3").exists():
+                logger.info("从持久化目录加载现有向量存储")
+                vectorstore = Chroma(
+                    persist_directory=str(persist_dir),
+                    embedding_function=embeddings,
+                    collection_name="nox_sensor_docs"
+                )
+            else:
+                logger.info("创建新的向量存储")
+                vectorstore = Chroma.from_texts(
+                    texts=texts,
+                    embedding=embeddings,
+                    persist_directory=str(persist_dir),
+                    collection_name="nox_sensor_docs"
+                )
+                vectorstore.persist()
+                logger.info("向量存储已持久化到磁盘")
             
             # 设置提示模板
             template = """你是一个专门研究氮氧传感器的专家。请基于以下背景信息，
@@ -148,16 +165,19 @@ class RAGQASystem:
                 input_variables=["context", "question"]
             )
             
-            # 创建问答链
-            self.qa_chain = ConversationalRetrievalChain.from_llm(
+            # 创建基础问答链
+            qa_chain = ConversationalRetrievalChain.from_llm(
                 llm=ChatOpenAI(
                     temperature=self.config.temperature,
                     model_name=self.config.model_name
                 ),
                 retriever=vectorstore.as_retriever(),
-                memory=self.memory,
                 combine_docs_chain_kwargs={"prompt": QA_PROMPT}
             )
+            
+            from langchain.schema.runnable import RunnableLambda
+
+            self.qa_chain = RunnableLambda(lambda x: {"question": x["question"], "chat_history": []}) | qa_chain
             
             logger.info("问答系统初始化完成")
             
@@ -223,7 +243,19 @@ def interactive_mode(qa_system: RAGQASystem) -> None:
         except Exception as e:
             print(f"\n错误: {str(e)}")
 
-def create_evaluation_dataset() -> str:
+def clean_langsmith():
+    client = Client()
+    projects = client.list_projects()
+    for project in projects:
+        client.delete_project(project_name=project.name)
+        time.sleep(1)
+    datasets = client.list_datasets()
+    for dataset in datasets:
+        client.delete_dataset(dataset_name=dataset.name)
+        time.sleep(1)
+    print("LangSmith 数据已清理")
+
+def create_evaluation_dataset(dataset_name: str) -> str:
     """创建评估数据集
     
     Returns:
@@ -234,7 +266,9 @@ def create_evaluation_dataset() -> str:
     """
     try:
         client = Client()
-        dataset_name = f"nox_sensor_qa_eval_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        if client.has_dataset(dataset_name=dataset_name):
+            return dataset_name
+        
         dataset = client.create_dataset(dataset_name)
         
         # 创建评估样例
@@ -269,41 +303,42 @@ def create_evaluation_dataset() -> str:
         logger.error(f"创建评估数据集失败: {str(e)}")
         raise
 
-def run_evaluation(qa_system: RAGQASystem) -> None:
-    """运行评估测试
-    
-    Args:
-        qa_system: 初始化好的问答系统
-        
-    Raises:
-        Exception: 当评估过程失败时
-    """
-    try:
+class LengthEvaluator(RunEvaluator):
+    def evaluate_run(self, run, example):
         client = Client()
-        dataset_name = create_evaluation_dataset()
-        
-        def construct_chain():
-            input_mapper = RunnableLambda(
-                lambda x: {"question": x["question"], "chat_history": []}
-            )
-            return input_mapper | qa_system.qa_chain
-        
-        logger.info("开始运行评估...")
-        client.run_on_dataset(
-            dataset_name=dataset_name,
-            llm_or_chain_factory=construct_chain,
-            project_metadata={"tags": ["nox_sensor_qa_eval"]},
-            verbose=True
+        client.create_feedback(
+            run_id=run.id,
+            key="length",
+            score=len(run.outputs.get("answer", "")),
+            source="qa_eval",
+            comment="Auto length score"
         )
-        logger.info("评估完成")
+
+def run_custom_eval(qa_system: RAGQASystem, dataset_name: str, project_name: str) -> None:
+    client = Client()
+
+    def chain_factory():
+        from langchain.schema.runnable import RunnableLambda
+        return (
+            RunnableLambda(lambda x: {"question": x["question"], "chat_history": []}) 
+            | qa_system.qa_chain
+        )
         
-    except Exception as e:
-        logger.error(f"评估失败: {str(e)}")
-        raise
+    client.run_on_dataset(
+        dataset_name=dataset_name,
+        llm_or_chain_factory=chain_factory,
+        project_name=project_name,
+        evaluators=[LengthEvaluator()],
+        verbose=True
+    )
 
 if __name__ == "__main__":
     # 检查是否为评估模式
     is_eval_mode = len(sys.argv) > 1 and sys.argv[1] == "--evaluate"
+
+    is_clean_mode = len(sys.argv) > 1 and sys.argv[1] == "--clean"
+
+    print("Tracing enabled:", os.getenv("LANGCHAIN_TRACING_V2"))
     
     # 设置 OpenAI API 密钥
     if not os.getenv("OPENAI_API_KEY"):
@@ -316,14 +351,20 @@ if __name__ == "__main__":
         os.environ["LANGSMITH_API_KEY"] = api_key
     
     try:
+        if is_clean_mode:
+            clean_langsmith()
+            exit()
+
         # 创建问答系统
         qa_system = create_qa_system("氮氧传感器性能及其控制策略研究-from SY.pdf")
         
         # 根据模式选择运行方式
         if is_eval_mode:
-            run_evaluation(qa_system)
+            create_evaluation_dataset("nox_sensor_qa_eval_v1")
+            project_name = f"nox_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            run_custom_eval(qa_system, "nox_sensor_qa_eval_v1", project_name)        
         else:
             interactive_mode(qa_system)
         
     except Exception as e:
-        print(f"系统错误: {str(e)}") 
+        print(f"系统错误: {str(e)}")
