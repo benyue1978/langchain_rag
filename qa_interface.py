@@ -1,117 +1,54 @@
 import os
-from pathlib import Path
-from typing import List, Dict, Any
-from langchain_community.document_loaders import UnstructuredPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from typing import Dict, Any
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_chroma import Chroma
 from langchain.chains import RetrievalQA
-from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate
+from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
 
 # 系统配置
 CHROMA_DIR = "chroma_db_hardware"
-PDF_FILES = ["data/r01uh0368ej0220_rl78f13_hardware.pdf", "data/r01us0015ej0230-rl78-software.pdf", "data/r20ut3123ej0114-ccrl.pdf"]
 
 # 模型配置
 EMBEDDING_MODEL = "text-embedding-ada-002"  # OpenAI 嵌入模型
 CHAT_MODEL = "gpt-3.5-turbo"  # OpenAI 对话模型
 TEMPERATURE = 0  # 温度参数：0表示最确定性的回答，1表示最具创造性
-CHUNK_SIZE = 500  # 文档分块大小
-CHUNK_OVERLAP = 50  # 分块重叠大小
 TOP_K_RESULTS = 5  # 检索时返回的最相关文档数量
 
-def load_and_process_documents(pdf_paths: List[str]) -> List[Any]:
-    """加载并处理PDF文档
-    
-    Args:
-        pdf_paths: PDF文件路径列表
-        
-    Returns:
-        加载的文档列表
-    """
-    all_docs = []
-    for path in pdf_paths:
-        try:
-            loader = UnstructuredPDFLoader(path)
-            docs = loader.load()
-            print(f"✅ 成功加载文档: {path}")
-            all_docs.extend(docs)
-        except Exception as e:
-            print(f"❌ 加载文档失败 {path}: {str(e)}")
-    return all_docs
-
-def split_documents(documents: List[Any]) -> List[Any]:
-    """分割文档为较小的块
-    
-    Args:
-        documents: 要分割的文档列表
-        
-    Returns:
-        分割后的文档块列表
-    """
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE,
-        chunk_overlap=CHUNK_OVERLAP,
-        separators=["\n\n", "\n", "。", "！", "？", ".", "!", "?"]  # 优化中文分割
-    )
-    return splitter.split_documents(documents)
-
-def init_vectorstore() -> Chroma:
-    """初始化向量存储
-    
-    使用 OpenAI 的 text-embedding-ada-002 模型生成文档嵌入。
-    首次运行时会创建新的向量存储，后续运行会直接加载已存在的存储。
+def init_qa_system() -> Dict[str, Any]:
+    """初始化问答系统
     
     Returns:
-        Chroma向量存储实例
+        包含向量存储和QA链的字典
     """
+    # 初始化嵌入模型
     embeddings = OpenAIEmbeddings(
         model=EMBEDDING_MODEL,
         show_progress_bar=True
     )
     
-    if Path(CHROMA_DIR).exists():
-        print(f"🟡 加载已存在的 Chroma DB: {CHROMA_DIR}")
-        return Chroma(
-            persist_directory=CHROMA_DIR,
-            embedding_function=embeddings
-        )
-
-    print(f"🟢 初始化新的 Chroma DB: {CHROMA_DIR}")
-    documents = load_and_process_documents(PDF_FILES)
-    chunks = split_documents(documents)
-    db = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=CHROMA_DIR
+    # 加载向量存储
+    vectorstore = Chroma(
+        persist_directory=CHROMA_DIR,
+        embedding_function=embeddings
     )
-    print(f"✅ 向量存储初始化完成，共处理 {len(chunks)} 个文档块")
-    return db
-
-def run_qa_interface(vectorstore: Chroma) -> None:
-    """运行问答接口
     
-    使用 ChatGPT (gpt-3.5-turbo) 模型处理用户查询，
-    通过向量相似度搜索找到相关文档内容。
-    
-    Args:
-        vectorstore: 向量存储实例
-    """
+    # 初始化检索器
     retriever = vectorstore.as_retriever(
         search_kwargs={"k": TOP_K_RESULTS}
     )
     
+    # 初始化语言模型
     llm = ChatOpenAI(
         model=CHAT_MODEL,
         temperature=TEMPERATURE,
         streaming=True,  # 启用流式输出
     )
     
-    # 创建带有自定义提示的QA链
+    # 创建提示模板
     prompt_template = """你是一个硬件工程师，请根据用户的问题，从文档中检索相关信息并生成回答。
 
 问题: {question}
@@ -128,6 +65,7 @@ def run_qa_interface(vectorstore: Chroma) -> None:
         input_variables=["context", "question"]
     )
     
+    # 创建QA链
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
@@ -135,11 +73,21 @@ def run_qa_interface(vectorstore: Chroma) -> None:
         return_source_documents=True,
         chain_type_kwargs={"prompt": PROMPT}
     )
+    
+    return {
+        "vectorstore": vectorstore,
+        "qa_chain": qa_chain
+    }
 
+def run_qa_interface() -> None:
+    """运行问答接口"""
     print("\n🤖 硬件文档问答系统")
     print("- 输入问题并按回车")
     print("- 输入 'exit' 或 'quit' 退出")
     print("- 输入 'help' 获取帮助")
+    
+    qa_system = init_qa_system()
+    qa_chain = qa_system["qa_chain"]
     
     while True:
         query = input("\n> ").strip()
@@ -173,7 +121,6 @@ if __name__ == "__main__":
         os.environ["OPENAI_API_KEY"] = api_key
         
     try:
-        vectorstore = init_vectorstore()
-        run_qa_interface(vectorstore)
+        run_qa_interface()
     except Exception as e:
-        print(f"❌ 系统错误: {str(e)}")
+        print(f"❌ 系统错误: {str(e)}") 
