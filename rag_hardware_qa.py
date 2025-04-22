@@ -4,9 +4,10 @@ from typing import List, Dict, Any
 from langchain_community.document_loaders import UnstructuredPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain.chains import RetrievalQA
 from dotenv import load_dotenv
+from langchain.prompts import PromptTemplate
 
 # 加载环境变量
 load_dotenv()
@@ -107,7 +108,24 @@ def run_qa_interface(vectorstore: Chroma) -> None:
     llm = ChatOpenAI(
         model=CHAT_MODEL,
         temperature=TEMPERATURE,
-        streaming=True  # 启用流式输出
+        streaming=True,  # 启用流式输出
+    )
+    
+    # 创建带有自定义提示的QA链
+    prompt_template = """你是一个硬件工程师，请根据用户的问题，从文档中检索相关信息并生成回答。
+
+问题: {question}
+
+相关文档内容:
+{context}
+
+请根据以上信息生成专业、准确的回答，并给出相应章节和页码。如果文档中没有相关信息，请明确说明。
+
+回答:"""
+
+    PROMPT = PromptTemplate(
+        template=prompt_template,
+        input_variables=["context", "question"]
     )
     
     qa_chain = RetrievalQA.from_chain_type(
@@ -115,6 +133,7 @@ def run_qa_interface(vectorstore: Chroma) -> None:
         chain_type="stuff",
         retriever=retriever,
         return_source_documents=True,
+        chain_type_kwargs={"prompt": PROMPT}
     )
 
     print("\n🤖 硬件文档问答系统")
