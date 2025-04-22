@@ -1,7 +1,7 @@
-"""RAG 问答系统模块
+"""基于RAG的问答系统模块
 
-此模块实现了一个基于 RAG (Retrieval-Augmented Generation) 的问答系统，
-专门用于处理和回答与氮氧传感器相关的问题。
+此模块实现了一个基于检索增强生成(RAG)的问答系统，专注于氮氧化物传感器相关问题。
+系统使用PDF文档作为知识库，通过向量存储和语言模型提供准确的答案。
 """
 
 import os
@@ -19,11 +19,11 @@ from datetime import datetime
 load_dotenv()
 
 from chinese_text_splitter import ChineseTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
-from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
+from langchain_community.vectorstores import Chroma
 from langsmith import Client
 
 from pdf_processor import PDFProcessor, PDFProcessorError
@@ -166,7 +166,7 @@ class RAGQASystem:
             )
             
             # 创建基础问答链
-            qa_chain = ConversationalRetrievalChain.from_llm(
+            self.qa_chain = ConversationalRetrievalChain.from_llm(
                 llm=ChatOpenAI(
                     temperature=self.config.temperature,
                     model_name=self.config.model_name
@@ -174,10 +174,6 @@ class RAGQASystem:
                 retriever=vectorstore.as_retriever(),
                 combine_docs_chain_kwargs={"prompt": QA_PROMPT}
             )
-            
-            from langchain.schema.runnable import RunnableLambda
-
-            self.qa_chain = RunnableLambda(lambda x: {"question": x["question"], "chat_history": []}) | qa_chain
             
             logger.info("问答系统初始化完成")
             
@@ -205,7 +201,11 @@ class RAGQASystem:
             raise ValueError("问答系统未正确初始化")
         
         try:
-            result = self.qa_chain({"question": question})
+            # 使用新版本的LangChain调用方式
+            result = self.qa_chain.invoke({
+                "question": question,
+                "chat_history": []
+            })
             return result["answer"]
         except Exception as e:
             logger.error(f"问答失败: {str(e)}")
@@ -303,34 +303,73 @@ def create_evaluation_dataset(dataset_name: str) -> str:
         logger.error(f"创建评估数据集失败: {str(e)}")
         raise
 
-class LengthEvaluator(RunEvaluator):
-    def evaluate_run(self, run, example):
-        client = Client()
-        client.create_feedback(
-            run_id=run.id,
-            key="length",
-            score=len(run.outputs.get("answer", "")),
-            source="qa_eval",
-            comment="Auto length score"
-        )
+def correctness(inputs: dict, outputs: dict, reference_outputs: dict) -> dict:
+    """评估答案的正确性
+    
+    使用 GPT-4 作为评判，比较生成的答案与参考答案的正确性。
+    """
+    from langchain_openai import ChatOpenAI
+    
+    eval_instructions = "你是一位专门评估氮氧传感器相关答案的专家教授。"
+    user_content = f"""你正在评估以下问题的答案：
+    问题：{inputs['question']}
+    
+    标准答案：
+    {reference_outputs['answer']}
+    
+    待评估答案：
+    {outputs['answer']}
+    
+    请仅回复 CORRECT 或 INCORRECT：
+    评分：
+    """
+    
+    llm = ChatOpenAI(temperature=0, model="gpt-4")
+    response = llm.invoke(user_content).content.strip()
+    
+    return {
+        "score": 1.0 if response == "CORRECT" else 0.0,
+        "reasoning": f"GPT-4 评估结果: {response}"
+    }
+
+def conciseness(outputs: dict, reference_outputs: dict) -> dict:
+    """评估答案的简洁性
+    
+    如果生成的答案长度小于参考答案长度的2倍，则认为是简洁的。
+    """
+    answer_length = len(outputs["answer"])
+    ref_length = len(reference_outputs["answer"])
+    score = 1.0 if answer_length < 2 * ref_length else ref_length / answer_length
+    
+    return {
+        "score": score,
+        "reasoning": f"答案长度: {answer_length}字，参考答案长度: {ref_length}字。得分说明：答案长度小于参考答案2倍为满分。"
+    }
 
 def run_custom_eval(qa_system: RAGQASystem, dataset_name: str, project_name: str) -> None:
+    """运行自定义评估
+    
+    Args:
+        qa_system: QA系统实例
+        dataset_name: 数据集名称
+        project_name: 项目名称
+    """
     client = Client()
-
-    def chain_factory():
-        from langchain.schema.runnable import RunnableLambda
-        return (
-            RunnableLambda(lambda x: {"question": x["question"], "chat_history": []}) 
-            | qa_system.qa_chain
-        )
-        
-    client.run_on_dataset(
-        dataset_name=dataset_name,
-        llm_or_chain_factory=chain_factory,
-        project_name=project_name,
-        evaluators=[LengthEvaluator()],
-        verbose=True
+    
+    def ls_target(inputs: dict) -> dict:
+        """目标函数，用于生成答案"""
+        return {"answer": qa_system.ask(inputs["question"])}
+    
+    # 运行评估
+    experiment_results = client.evaluate(
+        ls_target,  # 评估目标
+        data=dataset_name,  # 评估数据集
+        evaluators=[correctness, conciseness],  # 评估器
+        experiment_prefix=project_name  # 实验名称前缀
     )
+    
+    print(f"\n评估完成：结果已写入 Project = {project_name}")
+    return experiment_results
 
 if __name__ == "__main__":
     # 检查是否为评估模式
