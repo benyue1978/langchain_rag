@@ -14,7 +14,7 @@ load_dotenv()
 
 # 系统配置
 CHROMA_DIR = "chroma_db_hardware"
-PDF_FILES = ["data/r01uh0368ej0220_rl78f13_hardware.pdf", "data/r01us0015ej0230-rl78-software.pdf"]
+PDF_FILES = ["data/r01uh0368ej0220_rl78f13_hardware.pdf", "data/r01us0015ej0230-rl78-software.pdf", "data/r20ut3123ej0114-ccrl.pdf"]
 
 # 模型配置
 EMBEDDING_MODEL = "text-embedding-ada-002"  # OpenAI 嵌入模型
@@ -119,7 +119,7 @@ def run_qa_interface(vectorstore: Chroma) -> None:
 相关文档内容:
 {context}
 
-请根据以上信息生成专业、准确的回答，并给出相应章节和页码。如果文档中没有相关信息，请明确说明。
+请根据以上信息生成专业、准确的回答，并在回答最后给出相应文档名、章节和页码。如果文档中没有相关信息，请明确说明。
 
 回答:"""
 
