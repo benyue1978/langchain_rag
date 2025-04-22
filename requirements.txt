@@ -1,11 +1,27 @@
-langchain>=0.1.0
-openai>=1.0.0
-chromadb>=0.4.0
-tiktoken>=0.5.0
-unstructured>=0.10.0
-python-dotenv>=1.0.0
-langchain-community>=0.0.10
-langchain-openai>=0.0.3
-langsmith>=0.0.50
-pypdf>=3.0.0
+# OpenAI 相关依赖
+openai>=1.12.0
+langchain>=0.1.9
+langchain-openai>=0.0.8
+langchain-community>=0.0.24
+
+# 文档处理相关
+unstructured>=0.12.4
+unstructured-inference>=0.8.10
+pdf2image>=1.17.0
+pdfminer.six>=20250416
+python-magic>=0.4.27
+
+# 向量存储相关
+chromadb>=0.4.24
+langchain-chroma>=0.1.0
+
+# 工具和辅助包
+python-dotenv>=1.0.1
+typing-extensions>=4.9.0
+pydantic>=2.6.4
+
+# 中文分词
 jieba>=0.42.1
+
+# 可选依赖（提高性能）
+tiktoken>=0.6.0  # OpenAI token计数
