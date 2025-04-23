@@ -2,6 +2,7 @@ import os
 import argparse
 import signal
 import sys
+import logging
 from typing import Dict, Any
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
@@ -16,11 +17,14 @@ from langchain.prompts import PromptTemplate
 from langchain.chat_models.base import BaseChatModel
 from dotenv import load_dotenv
 
+# 配置日志级别为 ERROR
+logging.basicConfig(level=logging.ERROR)
+
 # 加载环境变量
 load_dotenv()
 
 # 系统配置
-CHROMA_DIR = "chroma_db_hardware"
+DEFAULT_CHROMA_DIR = "chroma_db_openai"  # 默认Chroma数据库目录
 HISTORY_FILE = os.path.expanduser("~/.qa_history")  # 保存在用户主目录下
 
 # 确保历史文件目录存在
@@ -65,24 +69,32 @@ def get_llm(model_type: str = "openai") -> BaseChatModel:
     else:
         raise ValueError(f"不支持的模型类型: {model_type}")
 
-def init_qa_system(model_type: str = "openai") -> Dict[str, Any]:
+def init_qa_system(model_type: str = "openai", chroma_dir: str = DEFAULT_CHROMA_DIR) -> Dict[str, Any]:
     """初始化问答系统
     
     Args:
         model_type: 模型类型，可选 'openai' 或 'deepseek'
+        chroma_dir: Chroma数据库目录路径
     
     Returns:
         包含向量存储和QA链的字典
     """
-    # 初始化嵌入模型
-    embeddings = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        show_progress_bar=True
-    )
+    # 根据数据库目录名判断使用的embeddings模型
+    if "zhipuai" in chroma_dir.lower():
+        from embeddings import ZhipuAIEmbeddings
+        embeddings = ZhipuAIEmbeddings(
+            model="embedding-3",
+            dimensions=2048  # 显式指定2048维度
+        )
+    else:
+        embeddings = OpenAIEmbeddings(
+            model=EMBEDDING_MODEL,
+            show_progress_bar=True
+        )
     
     # 加载向量存储
     vectorstore = Chroma(
-        persist_directory=CHROMA_DIR,
+        persist_directory=chroma_dir,
         embedding_function=embeddings
     )
     
@@ -135,6 +147,12 @@ def parse_args() -> argparse.Namespace:
         default="openai",
         help="选择使用的模型 (默认: openai)"
     )
+    parser.add_argument(
+        "--chromadir",
+        type=str,
+        default=DEFAULT_CHROMA_DIR,
+        help=f"指定Chroma数据库目录路径 (默认: {DEFAULT_CHROMA_DIR})"
+    )
     return parser.parse_args()
 
 def format_source_info(doc: Any) -> str:
@@ -176,11 +194,12 @@ def create_keybindings() -> KeyBindings:
     
     return kb
 
-def run_qa_interface(model_type: str = "openai") -> None:
+def run_qa_interface(model_type: str = "openai", chroma_dir: str = DEFAULT_CHROMA_DIR) -> None:
     """运行问答接口
     
     Args:
         model_type: 模型类型，可选 'openai' 或 'deepseek'
+        chroma_dir: Chroma数据库目录路径
     """
     # 注册信号处理器
     signal.signal(signal.SIGINT, signal_handler)
@@ -203,6 +222,7 @@ def run_qa_interface(model_type: str = "openai") -> None:
     )
     
     print(f"\n🤖 硬件文档问答系统 (使用 {model_type} 模型)")
+    print(f"📁 使用数据库目录: {chroma_dir}")
     print("- 按回车提交问题")
     print("- 按 Alt+回车 换行继续输入")
     print("- 输入 'exit' 或 'quit' 退出")
@@ -211,7 +231,7 @@ def run_qa_interface(model_type: str = "openai") -> None:
     print("- 使用上下箭头键浏览历史记录")
     print("- 使用 Ctrl+R 搜索历史记录")
     
-    qa_system = init_qa_system(model_type)
+    qa_system = init_qa_system(model_type, chroma_dir)
     qa_chain = qa_system["qa_chain"]
     
     while True:
@@ -262,6 +282,6 @@ def run_qa_interface(model_type: str = "openai") -> None:
 if __name__ == "__main__":
     args = parse_args()
     try:
-        run_qa_interface(args.model)
+        run_qa_interface(args.model, args.chromadir)
     except Exception as e:
         print(f"❌ 系统错误: {str(e)}") 

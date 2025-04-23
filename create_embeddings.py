@@ -1,23 +1,57 @@
 import os
 import argparse
 from pathlib import Path
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any, Set, Union
 from langchain_community.document_loaders import UnstructuredPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
+from langchain_core.embeddings import Embeddings
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
+from embeddings import ZhipuAIEmbeddings
 
 # 加载环境变量
 load_dotenv()
 
 # 系统配置
-CHROMA_DIR = "chroma_db_hardware"
+DEFAULT_CHROMA_DIR = "chroma_db_openai"  # 默认Chroma数据库目录
 
 # 模型配置
-EMBEDDING_MODEL = "text-embedding-ada-002"  # OpenAI 嵌入模型
+OPENAI_MODEL = "text-embedding-ada-002"  # OpenAI 嵌入模型
+ZHIPUAI_MODEL = "embedding-3"  # 智谱AI 嵌入模型
 CHUNK_SIZE = 500  # 文档分块大小
 CHUNK_OVERLAP = 50  # 分块重叠大小
+
+def get_embeddings(model_provider: str) -> Embeddings:
+    """获取指定提供商的嵌入模型
+    
+    Args:
+        model_provider: 模型提供商，可选值：'openai' 或 'zhipuai'
+        
+    Returns:
+        嵌入模型实例
+        
+    Raises:
+        ValueError: 当提供商名称无效时
+    """
+    if model_provider == "openai":
+        if not os.getenv("OPENAI_API_KEY"):
+            api_key = input("请输入您的OpenAI API密钥: ").strip()
+            os.environ["OPENAI_API_KEY"] = api_key
+        return OpenAIEmbeddings(
+            model=OPENAI_MODEL,
+            show_progress_bar=True
+        )
+    elif model_provider == "zhipuai":
+        if not os.getenv("ZHIPUAI_API_KEY"):
+            api_key = input("请输入您的智谱AI API密钥: ").strip()
+            os.environ["ZHIPUAI_API_KEY"] = api_key
+        return ZhipuAIEmbeddings(
+            model=ZHIPUAI_MODEL,
+            dimensions=2048  # 显式指定2048维度
+        )
+    else:
+        raise ValueError(f"不支持的模型提供商: {model_provider}")
 
 def get_pdf_files(data_dir: str) -> List[str]:
     """获取指定目录下的所有PDF文件
@@ -54,7 +88,7 @@ def get_processed_files(chroma_dir: str) -> Set[str]:
         return set()
         
     embeddings = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
+        model=OPENAI_MODEL,
         show_progress_bar=True
     )
     
@@ -107,21 +141,23 @@ def split_documents(documents: List[Any]) -> List[Any]:
     )
     return splitter.split_documents(documents)
 
-def create_or_update_vectorstore(data_dir: str) -> None:
+def create_or_update_vectorstore(data_dir: str, model_provider: str = "openai", chroma_dir: str = DEFAULT_CHROMA_DIR) -> None:
     """创建或更新向量存储
     
-    使用 OpenAI 的 text-embedding-ada-002 模型生成文档嵌入。
+    使用指定的嵌入模型生成文档嵌入。
     如果向量存储已存在，只处理新增的文档。
     
     Args:
         data_dir: PDF文件所在目录
+        model_provider: 模型提供商，可选值：'openai' 或 'zhipuai'
+        chroma_dir: Chroma数据库目录路径
     """
     # 获取所有PDF文件
     pdf_files = get_pdf_files(data_dir)
     print(f"📁 发现 {len(pdf_files)} 个PDF文件")
     
     # 获取已处理的文件
-    processed_files = get_processed_files(CHROMA_DIR)
+    processed_files = get_processed_files(chroma_dir)
     print(f"💾 已处理 {len(processed_files)} 个文件")
     
     # 找出新增的文件
@@ -133,20 +169,17 @@ def create_or_update_vectorstore(data_dir: str) -> None:
     print(f"🆕 发现 {len(new_files)} 个新文件")
     
     # 初始化嵌入模型
-    embeddings = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        show_progress_bar=True
-    )
+    embeddings = get_embeddings(model_provider)
     
     # 处理新文件
     documents = load_and_process_documents(new_files)
     chunks = split_documents(documents)
     
     # 创建或更新向量存储
-    if Path(CHROMA_DIR).exists():
+    if Path(chroma_dir).exists():
         print("🔄 更新现有向量数据库")
         db = Chroma(
-            persist_directory=CHROMA_DIR,
+            persist_directory=chroma_dir,
             embedding_function=embeddings
         )
         db.add_documents(chunks)
@@ -155,7 +188,7 @@ def create_or_update_vectorstore(data_dir: str) -> None:
         Chroma.from_documents(
             documents=chunks,
             embedding=embeddings,
-            persist_directory=CHROMA_DIR
+            persist_directory=chroma_dir
         )
     
     print(f"✅ 处理完成，新增 {len(chunks)} 个文档块")
@@ -169,18 +202,26 @@ def parse_args() -> argparse.Namespace:
         default="data",
         help="PDF文件所在目录（默认：./data）"
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=["openai", "zhipuai"],
+        default="openai",
+        help="使用的嵌入模型提供商（默认：openai）"
+    )
+    parser.add_argument(
+        "--chromadir",
+        type=str,
+        default=DEFAULT_CHROMA_DIR,
+        help=f"指定Chroma数据库目录路径（默认：{DEFAULT_CHROMA_DIR}）"
+    )
     return parser.parse_args()
 
 if __name__ == "__main__":
     # 解析命令行参数
     args = parse_args()
     
-    # 检查OpenAI API密钥
-    if not os.getenv("OPENAI_API_KEY"):
-        api_key = input("请输入您的OpenAI API密钥: ").strip()
-        os.environ["OPENAI_API_KEY"] = api_key
-    
     try:
-        create_or_update_vectorstore(args.datadir)
+        create_or_update_vectorstore(args.datadir, args.model, args.chromadir)
     except Exception as e:
         print(f"❌ 系统错误: {str(e)}") 

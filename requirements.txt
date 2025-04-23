@@ -42,3 +42,6 @@ tiktoken>=0.6.0  # OpenAI token计数
 # 系统要求
 # Python >= 3.9
 # macOS/Linux: poppler 用于 PDF 处理（brew install poppler）
+
+# 新增依赖
+zhipuai>=1.0.7

@@ -1,20 +1,26 @@
 # 硬件文档智能问答系统
 
-基于 LangChain 和 OpenAI 实现的硬件文档智能问答系统，支持中文交互，可以根据用户提问从 PDF 文档中检索相关信息并生成专业的回答。
+基于 LangChain 和 OpenAI/智谱 AI 实现的硬件文档智能问答系统，支持中文交互，可以根据用户提问从 PDF 文档中检索相关信息并生成专业的回答。
 
 ## 功能特点
 
 - 支持 PDF 文档的自动加载和处理
-- 使用 OpenAI 的 text-embedding-ada-002 模型生成文档向量
+- 支持多种嵌入模型：
+  - OpenAI text-embedding-ada-002
+  - 智谱 AI embedding-3（2048维）
 - 支持增量添加新文档，避免重复处理
-- 使用 ChatGPT (gpt-3.5-turbo) 生成专业的回答
+- 支持多种对话模型：
+  - ChatGPT (gpt-3.5-turbo)
+  - DeepSeek Chat
 - 提供文档来源追踪
 - 完全支持中文
 
 ## 系统要求
 
 - Python 3.8+
-- OpenAI API 密钥
+- OpenAI API 密钥（使用 OpenAI 模型时）
+- 智谱 AI API 密钥（使用智谱 AI 模型时）
+- DeepSeek API 密钥（使用 DeepSeek 模型时）
 
 ## 安装步骤
 
@@ -31,9 +37,16 @@ pip install -r requirements.txt
 
 3. 配置环境变量：
    - 创建 `.env` 文件
-   - 添加 OpenAI API 密钥：
+   - 根据需要添加相应的 API 密钥：
 ```bash
-OPENAI_API_KEY=your-api-key-here
+# OpenAI（可选）
+OPENAI_API_KEY=your-openai-api-key-here
+
+# 智谱 AI（可选）
+ZHIPUAI_API_KEY=your-zhipuai-api-key-here
+
+# DeepSeek（可选）
+DEEPSEEK_API_KEY=your-deepseek-api-key-here
 ```
 
 ## 使用方法
@@ -47,8 +60,11 @@ OPENAI_API_KEY=your-api-key-here
 运行 `create_embeddings.py` 脚本来处理文档并创建向量数据库：
 
 ```bash
-# 使用默认的 ./data 目录
+# 使用默认的 OpenAI embeddings
 python create_embeddings.py
+
+# 使用智谱 AI embeddings
+python create_embeddings.py --chromadir chroma_db_zhipuai
 
 # 或指定自定义目录
 python create_embeddings.py --datadir /path/to/pdf/files
@@ -58,6 +74,7 @@ python create_embeddings.py --datadir /path/to/pdf/files
 - 自动检测并处理目录中的所有 PDF 文件
 - 支持增量更新，只处理新添加的文档
 - 保留现有的向量数据库内容
+- 根据数据库目录名自动选择嵌入模型
 
 ### 3. 启动问答系统
 
@@ -69,6 +86,9 @@ python qa_interface.py
 
 # 使用 DeepSeek 模型
 python qa_interface.py --model deepseek
+
+# 使用智谱 AI embeddings（通过指定数据库目录）
+python qa_interface.py --chromadir chroma_db_zhipuai
 ```
 
 使用说明：
@@ -79,10 +99,12 @@ python qa_interface.py --model deepseek
 支持的模型：
 - OpenAI (默认): 使用 gpt-3.5-turbo 模型
 - DeepSeek: 使用 deepseek-chat 模型
+- 智谱 AI: 使用 embedding-3 模型进行文本嵌入
 
 注意：使用不同的模型需要对应的 API 密钥：
 - OpenAI 模型需要设置 `OPENAI_API_KEY` 环境变量
 - DeepSeek 模型需要设置 `DEEPSEEK_API_KEY` 环境变量
+- 智谱 AI 需要设置 `ZHIPUAI_API_KEY` 环境变量
 
 ### 示例问答
 
@@ -115,15 +137,17 @@ RL78/F13的LED驱动功能包括8位D/A转换器和内置比较器。该芯片�
 ├── data/                  # PDF文档目录
 ├── create_embeddings.py   # 文档处理和向量化脚本
 ├── qa_interface.py        # 问答交互接口
-└── chroma_db_hardware/    # 向量数据库存储目录
+├── embeddings.py          # 嵌入模型实现
+└── chroma_db/            # 向量数据库存储目录
 ```
 
 ## 注意事项
 
-1. 首次运行需要配置 OpenAI API 密钥
+1. 首次运行需要配置相应的 API 密钥
 2. PDF 文档需要是可复制的文本格式
 3. 向量数据库会占用一定磁盘空间
-4. 建议定期备份 `chroma_db_hardware` 目录
+4. 建议定期备份向量数据库目录
+5. 智谱 AI embeddings 使用2048维向量，可能需要更多存储空间
 
 ## 常见问题
 
@@ -134,7 +158,9 @@ RL78/F13的LED驱动功能包括8位D/A转换器和内置比较器。该芯片�
 2. **API 密钥错误**
    - 检查 `.env` 文件中的密钥是否正确
    - 确认 API 密钥未过期
+   - 确保使用了正确的环境变量名
 
 3. **内存使用过高**
    - 可以调整 `CHUNK_SIZE` 参数
    - 分批处理大型文档
+   - 注意智谱 AI embeddings 的向量维度较大

@@ -5,8 +5,9 @@
 ## 已完成任务
 
 - [x] 基础环境配置
-  - [x] 环境变量配置（OpenAI API Key, LangSmith API Key）
+  - [x] 环境变量配置（OpenAI API Key, LangSmith API Key, ZhipuAI API Key）
   - [x] 日志和警告配置
+  - [x] 日志级别优化（设置为 ERROR）
 - [x] PDF 文档处理
   - [x] 实现 PDF 加载器
   - [x] 文本分割器配置
@@ -25,7 +26,10 @@
     - [x] 清理图表标题和参考文献
     - [x] 规范化特殊字符和标点
 - [x] 向量存储实现
-  - [x] OpenAI Embeddings 配置
+  - [x] 多种 Embeddings 支持
+    - [x] OpenAI Embeddings 配置
+    - [x] 智谱 AI Embeddings 实现（2048维）
+    - [x] 自动模型选择机制
   - [x] Chroma 向量数据库集成
   - [x] 持久化存储配置
 - [x] QA 系统核心功能
@@ -54,10 +58,12 @@
   - [ ] 添加文档管理功能
   - [ ] 支持文档元数据
   - [ ] 优化检索策略
+  - [ ] 支持更多嵌入模型
 - [ ] 性能优化
   - [ ] 向量存储缓存机制
   - [ ] 批量处理优化
   - [ ] 异步处理支持
+  - [ ] 大维度向量优化
 
 ## 未来任务
 
@@ -65,10 +71,12 @@
   - [ ] 添加进度条显示
   - [ ] 添加结果导出功能
   - [ ] 支持多种输出格式
+  - [ ] 模型切换界面优化
 - [ ] 测试完善
   - [ ] 单元测试编写
   - [ ] 集成测试实现
   - [ ] 性能测试
+  - [ ] 多模型兼容性测试
 - [ ] 部署相关
   - [ ] Docker 容器化
   - [ ] CI/CD 流程配置
@@ -77,12 +85,14 @@
   - [ ] 支持更多文档格式
   - [ ] 多语言支持
   - [ ] API 接口开发
+  - [ ] 更多 AI 模型集成
 
 ## 相关文件
 
 - ✅ `rag_qa.py`: 主要实现文件，包含核心 QA 系统逻辑
 - ✅ `pdf_processor.py`: PDF 处理器，提供专门的 PDF 文档处理功能
 - ✅ `chinese_text_splitter.py`: 中文文本分割器，基于 jieba 分词实现
+- ✅ `embeddings.py`: 嵌入模型实现，支持多种模型
 - ⏳ `requirements.txt`: 项目依赖文件（待更新）
 - ⏳ `README.md`: 项目说明文档（待更新）
 - ⏳ `tests/`: 测试目录（待创建）
@@ -94,7 +104,7 @@
 - 使用 LangChain 框架作为基础
 - 采用 RAG (Retrieval-Augmented Generation) 架构
 - 使用 Chroma 作为向量数据库
-- 使用 OpenAI GPT-3.5/4 作为基础模型
+- 支持多种 AI 模型和 embeddings
 
 ### 数据流
 1. PDF 文档加载 → 文本分割 → 向量化存储
@@ -104,6 +114,8 @@
 ### 技术组件
 - LangChain
 - OpenAI API
+- 智谱 AI API
+- DeepSeek API
 - Chroma DB
 - PyMuPDF
 - jieba 分词
@@ -111,6 +123,8 @@
 
 ### 环境配置
 - Python 3.8+
-- OpenAI API Key
+- OpenAI API Key（可选）
+- 智谱 AI API Key（可选）
+- DeepSeek API Key（可选）
 - LangSmith API Key
 - 必要的 Python 包依赖
