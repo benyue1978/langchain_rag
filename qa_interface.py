@@ -6,6 +6,8 @@ from typing import Dict, Any
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.styles import Style
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_deepseek import ChatDeepSeek
 from langchain_chroma import Chroma
@@ -13,7 +15,6 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.chat_models.base import BaseChatModel
 from dotenv import load_dotenv
-from pathlib import Path
 
 # 加载环境变量
 load_dotenv()
@@ -153,6 +154,28 @@ def signal_handler(signum, frame):
     print("\n\n👋 感谢使用！")
     sys.exit(0)
 
+def create_keybindings() -> KeyBindings:
+    """创建自定义键绑定
+    
+    Returns:
+        KeyBindings 实例
+    """
+    kb = KeyBindings()
+    
+    @kb.add('enter')
+    def _(event):
+        """处理回车键：直接提交查询"""
+        buff = event.current_buffer
+        if buff.text.strip():  # 如果有内容才提交
+            buff.validate_and_handle()
+    
+    @kb.add('escape', 'enter')  # Alt + Enter
+    def _(event):
+        """处理 Alt+Enter：插入换行"""
+        event.current_buffer.insert_text('\n')
+    
+    return kb
+
 def run_qa_interface(model_type: str = "openai") -> None:
     """运行问答接口
     
@@ -162,15 +185,26 @@ def run_qa_interface(model_type: str = "openai") -> None:
     # 注册信号处理器
     signal.signal(signal.SIGINT, signal_handler)
     
+    # 定义提示样式
+    style = Style.from_dict({
+        'prompt': '#00aa00 bold',
+        'continuation': '#666666',
+    })
+    
     # 初始化提示会话
     session = PromptSession(
         history=FileHistory(HISTORY_FILE),
         auto_suggest=AutoSuggestFromHistory(),
         enable_history_search=True,
+        key_bindings=create_keybindings(),
+        style=style,
+        multiline=True,  # 启用多行模式
+        prompt_continuation=lambda width, line_number, is_soft_wrap: '... > ',
     )
     
     print(f"\n🤖 硬件文档问答系统 (使用 {model_type} 模型)")
-    print("- 输入问题并按回车")
+    print("- 按回车提交问题")
+    print("- 按 Alt+回车 换行继续输入")
     print("- 输入 'exit' 或 'quit' 退出")
     print("- 输入 'help' 获取帮助")
     print("- 按 Ctrl+C 随时退出")
@@ -182,8 +216,11 @@ def run_qa_interface(model_type: str = "openai") -> None:
     
     while True:
         try:
-            # 使用 prompt_toolkit 获取输入
-            query = session.prompt("\n> ").strip()
+            # 使用 prompt_toolkit 获取多行输入
+            query = session.prompt(
+                ">>> ",
+                style=style
+                ).strip()
             
             if not query:
                 continue
@@ -195,6 +232,8 @@ def run_qa_interface(model_type: str = "openai") -> None:
             if query.lower() == "help":
                 print("\n📖 帮助信息:")
                 print("- 您可以询问有关硬件的任何问题")
+                print("- 按回车提交问题")
+                print("- 按 Alt+回车 换行继续输入")
                 print("- 系统会从文档中检索相关信息并生成回答")
                 print("- 每个回答都会显示信息来源")
                 print("- 按 Ctrl+C 随时退出")
