@@ -64,13 +64,25 @@ python create_embeddings.py --datadir /path/to/pdf/files
 运行 `qa_interface.py` 开始问答交互：
 
 ```bash
+# 使用默认的 OpenAI 模型
 python qa_interface.py
+
+# 使用 DeepSeek 模型
+python qa_interface.py --model deepseek
 ```
 
 使用说明：
 - 输入问题并按回车
 - 输入 'exit' 或 'quit' 退出
 - 输入 'help' 获取帮助
+
+支持的模型：
+- OpenAI (默认): 使用 gpt-3.5-turbo 模型
+- DeepSeek: 使用 deepseek-chat 模型
+
+注意：使用不同的模型需要对应的 API 密钥：
+- OpenAI 模型需要设置 `OPENAI_API_KEY` 环境变量
+- DeepSeek 模型需要设置 `DEEPSEEK_API_KEY` 环境变量
 
 ### 示例问答
 
