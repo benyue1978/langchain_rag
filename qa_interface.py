@@ -1,6 +1,11 @@
 import os
 import argparse
+import signal
+import sys
 from typing import Dict, Any
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_deepseek import ChatDeepSeek
 from langchain_chroma import Chroma
@@ -8,12 +13,17 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.chat_models.base import BaseChatModel
 from dotenv import load_dotenv
+from pathlib import Path
 
 # 加载环境变量
 load_dotenv()
 
 # 系统配置
 CHROMA_DIR = "chroma_db_hardware"
+HISTORY_FILE = os.path.expanduser("~/.qa_history")  # 保存在用户主目录下
+
+# 确保历史文件目录存在
+os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
 
 # 模型配置
 EMBEDDING_MODEL = "text-embedding-ada-002"  # OpenAI 嵌入模型
@@ -138,49 +148,77 @@ def format_source_info(doc: Any) -> str:
     source = doc.metadata.get('source', '未知来源')
     return source
 
+def signal_handler(signum, frame):
+    """处理中断信号"""
+    print("\n\n👋 感谢使用！")
+    sys.exit(0)
+
 def run_qa_interface(model_type: str = "openai") -> None:
     """运行问答接口
     
     Args:
         model_type: 模型类型，可选 'openai' 或 'deepseek'
     """
+    # 注册信号处理器
+    signal.signal(signal.SIGINT, signal_handler)
+    
+    # 初始化提示会话
+    session = PromptSession(
+        history=FileHistory(HISTORY_FILE),
+        auto_suggest=AutoSuggestFromHistory(),
+        enable_history_search=True,
+    )
+    
     print(f"\n🤖 硬件文档问答系统 (使用 {model_type} 模型)")
     print("- 输入问题并按回车")
     print("- 输入 'exit' 或 'quit' 退出")
     print("- 输入 'help' 获取帮助")
+    print("- 按 Ctrl+C 随时退出")
+    print("- 使用上下箭头键浏览历史记录")
+    print("- 使用 Ctrl+R 搜索历史记录")
     
     qa_system = init_qa_system(model_type)
     qa_chain = qa_system["qa_chain"]
     
     while True:
-        query = input("\n> ").strip()
-        
-        if not query:
-            continue
-            
-        if query.lower() in ["exit", "quit"]:
-            print("👋 感谢使用！")
-            break
-            
-        if query.lower() == "help":
-            print("\n📖 帮助信息:")
-            print("- 您可以询问有关硬件的任何问题")
-            print("- 系统会从文档中检索相关信息并生成回答")
-            print("- 每个回答都会显示信息来源")
-            continue
-            
         try:
-            result = qa_chain.invoke({"query": query})
-            print(f"\n🧠 回答:\n{result['result']}")
+            # 使用 prompt_toolkit 获取输入
+            query = session.prompt("\n> ").strip()
             
-            # 获取去重后的参考来源
-            if result["source_documents"]:
-                sources = {format_source_info(doc) for doc in result["source_documents"]}
-                print("\n📄 参考来源:")
-                for source in sorted(sources):  # 排序以保持稳定的输出顺序
-                    print(f" - {source}")
-        except Exception as e:
-            print(f"❌ 处理问题时出错: {str(e)}")
+            if not query:
+                continue
+                
+            if query.lower() in ["exit", "quit"]:
+                print("👋 感谢使用！")
+                break
+                
+            if query.lower() == "help":
+                print("\n📖 帮助信息:")
+                print("- 您可以询问有关硬件的任何问题")
+                print("- 系统会从文档中检索相关信息并生成回答")
+                print("- 每个回答都会显示信息来源")
+                print("- 按 Ctrl+C 随时退出")
+                print("- 使用上下箭头键浏览历史记录")
+                print("- 使用 Ctrl+R 搜索历史记录")
+                continue
+                
+            try:
+                result = qa_chain.invoke({"query": query})
+                print(f"\n🧠 回答:\n{result['result']}")
+                
+                # 获取去重后的参考来源
+                if result["source_documents"]:
+                    sources = {format_source_info(doc) for doc in result["source_documents"]}
+                    print("\n📄 参考来源:")
+                    for source in sorted(sources):  # 排序以保持稳定的输出顺序
+                        print(f" - {source}")
+            except Exception as e:
+                print(f"❌ 处理问题时出错: {str(e)}")
+        except KeyboardInterrupt:
+            signal_handler(signal.SIGINT, None)
+        except EOFError:  # 处理 Ctrl+D
+            print("\n👋 感谢使用！")
+            break
 
 if __name__ == "__main__":
     args = parse_args()

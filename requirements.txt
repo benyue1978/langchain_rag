@@ -5,6 +5,9 @@ langchain-openai>=0.0.8
 langchain-community>=0.0.24
 langchain-deepseek>=0.0.1
 
+# 终端交互
+prompt_toolkit>=3.0.43
+
 # 文档处理相关
 unstructured[pdf]>=0.12.4  # 包含所有 PDF 处理依赖
 unstructured-inference>=0.8.10
