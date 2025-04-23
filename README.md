@@ -164,3 +164,12 @@ RL78/F13的LED驱动功能包括8位D/A转换器和内置比较器。该芯片�
    - 可以调整 `CHUNK_SIZE` 参数
    - 分批处理大型文档
    - 注意智谱 AI embeddings 的向量维度较大
+
+## 国内使用推荐
+
+```shell
+# 做文档索引
+python create_embeddings.py --model zhipuai --chromadir chroma_db_zhipuai
+# 做查询
+python qa_interface.py --chromadir chroma_db_zhipuai --model deepseek
+```
