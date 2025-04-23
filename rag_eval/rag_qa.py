@@ -18,7 +18,7 @@ from datetime import datetime
 # 加载环境变量
 load_dotenv()
 
-from chinese_text_splitter import ChineseTextSplitter
+from rag_eval.chinese_text_splitter import ChineseTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
@@ -26,7 +26,7 @@ from langchain.prompts import PromptTemplate
 from langchain_community.vectorstores import Chroma
 from langsmith import Client
 
-from pdf_processor import PDFProcessor, PDFProcessorError
+from rag_eval.pdf_processor import PDFProcessor, PDFProcessorError
 from langsmith.evaluation import RunEvaluator
 
 # 配置日志
