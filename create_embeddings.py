@@ -2,7 +2,7 @@ import os
 import argparse
 from pathlib import Path
 from typing import List, Dict, Any, Set, Union
-from langchain_community.document_loaders import UnstructuredPDFLoader
+from langchain_unstructured import UnstructuredLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.embeddings import Embeddings
@@ -21,6 +21,8 @@ OPENAI_MODEL = "text-embedding-ada-002"  # OpenAI 嵌入模型
 ZHIPUAI_MODEL = "embedding-3"  # 智谱AI 嵌入模型
 CHUNK_SIZE = 500  # 文档分块大小
 CHUNK_OVERLAP = 50  # 分块重叠大小
+
+SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv", ".xls", ".xlsx", ".ppt", ".pptx"]
 
 def get_embeddings(model_provider: str) -> Embeddings:
     """获取指定提供商的嵌入模型
@@ -53,8 +55,8 @@ def get_embeddings(model_provider: str) -> Embeddings:
     else:
         raise ValueError(f"不支持的模型提供商: {model_provider}")
 
-def get_pdf_files(data_dir: str) -> List[str]:
-    """获取指定目录下的所有PDF文件
+def get_supported_files(data_dir: str) -> List[str]:
+    """获取指定目录下的所有支持的文件
     
     Args:
         data_dir: PDF文件所在目录
@@ -66,14 +68,15 @@ def get_pdf_files(data_dir: str) -> List[str]:
     if not data_path.exists():
         raise ValueError(f"目录不存在: {data_dir}")
     
-    pdf_files = []
-    for file in data_path.glob("**/*.pdf"):
-        pdf_files.append(str(file))
+    supported_files = []
+    for file in data_path.glob("**/*"):
+        if file.suffix in SUPPORTED_EXTENSIONS:
+            supported_files.append(str(file))
     
-    if not pdf_files:
-        raise ValueError(f"目录中没有找到PDF文件: {data_dir}")
+    if not supported_files:
+        raise ValueError(f"目录中没有找到支持的文件: {data_dir}")
         
-    return pdf_files
+    return supported_files
 
 def get_processed_files(chroma_dir: str) -> Set[str]:
     """获取已经处理过的文件列表
@@ -87,14 +90,8 @@ def get_processed_files(chroma_dir: str) -> Set[str]:
     if not Path(chroma_dir).exists():
         return set()
         
-    embeddings = OpenAIEmbeddings(
-        model=OPENAI_MODEL,
-        show_progress_bar=True
-    )
-    
     db = Chroma(
-        persist_directory=chroma_dir,
-        embedding_function=embeddings
+        persist_directory=chroma_dir
     )
     
     # 从元数据中获取已处理的文件路径
@@ -105,7 +102,7 @@ def get_processed_files(chroma_dir: str) -> Set[str]:
     
     return processed
 
-def load_and_process_documents(pdf_paths: List[str]) -> List[Any]:
+def load_and_process_documents(file_paths: List[str]) -> List[Any]:
     """加载并处理PDF文档
     
     Args:
@@ -115,10 +112,10 @@ def load_and_process_documents(pdf_paths: List[str]) -> List[Any]:
         加载的文档列表
     """
     all_docs = []
-    for path in pdf_paths:
+    for path in file_paths:
         try:
             print(f"🔍 加载文档: {path}")
-            loader = UnstructuredPDFLoader(path)
+            loader = UnstructuredLoader(path)
             docs = loader.load()
             #print(f"🔍 加载文档: {docs}") # 打印文档内容
             print(f"✅ 成功加载文档: {path}")
@@ -154,16 +151,16 @@ def create_or_update_vectorstore(data_dir: str, model_provider: str = "openai", 
         model_provider: 模型提供商，可选值：'openai' 或 'zhipuai'
         chroma_dir: Chroma数据库目录路径
     """
-    # 获取所有PDF文件
-    pdf_files = get_pdf_files(data_dir)
-    print(f"📁 发现 {len(pdf_files)} 个PDF文件")
+    # 获取所有支持的文件
+    supported_files = get_supported_files(data_dir)
+    print(f"📁 发现 {len(supported_files)} 个支持的文件")
     
     # 获取已处理的文件
     processed_files = get_processed_files(chroma_dir)
     print(f"💾 已处理 {len(processed_files)} 个文件")
     
     # 找出新增的文件
-    new_files = [f for f in pdf_files if f not in processed_files]
+    new_files = [f for f in supported_files if f not in processed_files]
     if not new_files:
         print("✨ 没有新的文件需要处理")
         return
@@ -202,7 +199,7 @@ def parse_args() -> argparse.Namespace:
         "--datadir",
         type=str,
         default="data",
-        help="PDF文件所在目录（默认：./data）"
+        help="文件所在目录（默认：./data）"
     )
     parser.add_argument(
         "--model",
