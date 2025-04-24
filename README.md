@@ -26,17 +26,20 @@
 
 1. 克隆项目并进入目录：
 ```bash
-git clone [your-repo-url]
-cd [your-repo-name]
+git clone git@codeup.aliyun.com:zkz/tools/zkz-ai-rag.git
+cd zkz-ai-rag
 ```
 
 2. 安装依赖：
 ```bash
+python -m venv venv
+source venv/bin/activate # MacOS
+venv/Scripts/activate # Windows， Windows还需要先安装VS C++
 pip install -r requirements.txt
 ```
 
 3. 配置环境变量：
-   - 创建 `.env` 文件
+   - 参考`.env.sample`，创建 `.env` 文件
    - 根据需要添加相应的 API 密钥：
 ```bash
 # OpenAI（可选）
@@ -165,7 +168,7 @@ RL78/F13的LED驱动功能包括8位D/A转换器和内置比较器。该芯片�
    - 分批处理大型文档
    - 注意智谱 AI embeddings 的向量维度较大
 
-## 国内使用推荐
+## 国内使用推荐智谱AI+Deepseek
 
 ```shell
 # 做文档索引

@@ -117,8 +117,10 @@ def load_and_process_documents(pdf_paths: List[str]) -> List[Any]:
     all_docs = []
     for path in pdf_paths:
         try:
+            print(f"🔍 加载文档: {path}")
             loader = UnstructuredPDFLoader(path)
             docs = loader.load()
+            #print(f"🔍 加载文档: {docs}") # 打印文档内容
             print(f"✅ 成功加载文档: {path}")
             all_docs.extend(docs)
         except Exception as e:
