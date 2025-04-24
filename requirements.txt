@@ -19,7 +19,7 @@ pillow-heif>=0.22.0
 pi-heif>=0.22.0
 pikepdf>=9.7.0
 google-cloud-vision>=3.10.1
-python-magic-bin>=0.4.14
+python-magic-bin>=0.4.14; sys_platform == "win32"
 
 # Vector storage related
 chromadb>=0.4.24
