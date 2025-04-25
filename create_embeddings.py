@@ -9,6 +9,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
 from embeddings import ZhipuAIEmbeddings
+from langchain.schema import Document
 
 # 加载环境变量
 load_dotenv()
@@ -22,7 +23,8 @@ ZHIPUAI_MODEL = "embedding-3"  # 智谱AI 嵌入模型
 CHUNK_SIZE = 500  # 文档分块大小
 CHUNK_OVERLAP = 50  # 分块重叠大小
 
-SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv", ".xls", ".xlsx", ".ppt", ".pptx"]
+# https://docs.unstructured.io/api-reference/supported-file-types
+SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv", ".xls", ".xlsx", ".ppt", ".pptx", ".epub"]
 
 def get_embeddings(model_provider: str) -> Embeddings:
     """获取指定提供商的嵌入模型
@@ -172,6 +174,19 @@ def create_or_update_vectorstore(data_dir: str, model_provider: str = "openai", 
     
     # 处理新文件
     documents = load_and_process_documents(new_files)
+
+    # 强制转为兼容类型
+    documents = [
+        Document(page_content=doc.page_content, metadata=doc.metadata)
+        for doc in documents
+    ]
+
+    # 如有需要，也可以清洗 metadata（可选）
+    for doc in documents:
+        for k, v in doc.metadata.items():
+            if isinstance(v, (list, dict)):
+                doc.metadata[k] = str(v)
+                
     chunks = split_documents(documents)
     
     # 创建或更新向量存储
