@@ -37,7 +37,10 @@ source venv/bin/activate # MacOS
 venv/Scripts/activate # Windows
 # Windows还需要先安装VS C++
 # Windows上为了处理word等文件，还需要安装pandoc https://github.com/jgm/pandoc/releases
-# MacOS上为了处理doc文件，需要安装brew install --cask libreoffice
+# 为了处理doc文件，需要安装libreoffice：
+# MacOS: brew install --cask libreoffice
+# Windows: https://www.libreoffice.org/download/download-libreoffice/ 安装之后把C:\Program Files\LibreOffice\program加入Path环境变量
+# 然后把doc批量转换为docx - doc-conver.ps1
 pip install -r requirements.txt
 ```
 
