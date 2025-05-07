@@ -9,7 +9,7 @@ langchain-deepseek>=0.0.1
 prompt_toolkit>=3.0.43
 
 # Document processing related
-langchain-unstructured>=0.1.6
+langchain-unstructured
 unstructured[all-docs]>=0.12.4  # Contains all PDF processing dependencies
 unstructured-inference>=0.8.10
 unstructured.pytesseract>=0.3.15

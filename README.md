@@ -37,6 +37,7 @@ source venv/bin/activate # MacOS
 venv/Scripts/activate # Windows
 # Windows还需要先安装VS C++
 # Windows上为了处理word等文件，还需要安装pandoc https://github.com/jgm/pandoc/releases
+# MacOS上为了处理doc文件，需要安装brew install --cask libreoffice
 pip install -r requirements.txt
 ```
 

@@ -24,7 +24,7 @@ CHUNK_SIZE = 500  # 文档分块大小
 CHUNK_OVERLAP = 50  # 分块重叠大小
 
 # https://docs.unstructured.io/api-reference/supported-file-types
-SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv", ".xls", ".xlsx", ".ppt", ".pptx", ".epub"]
+SUPPORTED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt", ".md", ".csv", ".xls", ".xlsx", ".ppt", ".pptx", ".epub"]
 
 def get_embeddings(model_provider: str) -> Embeddings:
     """获取指定提供商的嵌入模型
@@ -172,40 +172,43 @@ def create_or_update_vectorstore(data_dir: str, model_provider: str = "openai", 
     # 初始化嵌入模型
     embeddings = get_embeddings(model_provider)
     
-    # 处理新文件
-    documents = load_and_process_documents(new_files)
-
-    # 强制转为兼容类型
-    documents = [
-        Document(page_content=doc.page_content, metadata=doc.metadata)
-        for doc in documents
-    ]
-
-    # 如有需要，也可以清洗 metadata（可选）
-    for doc in documents:
-        for k, v in doc.metadata.items():
-            if isinstance(v, (list, dict)):
-                doc.metadata[k] = str(v)
-                
-    chunks = split_documents(documents)
-    
-    # 创建或更新向量存储
+    # 初始化或加载向量数据库
     if Path(chroma_dir).exists():
         print("🔄 更新现有向量数据库")
         db = Chroma(
             persist_directory=chroma_dir,
             embedding_function=embeddings
         )
-        db.add_documents(chunks)
     else:
         print("🆕 创建新的向量数据库")
-        Chroma.from_documents(
-            documents=chunks,
+        db = Chroma.from_documents(
+            documents=[],  # 先创建空库
             embedding=embeddings,
             persist_directory=chroma_dir
         )
     
-    print(f"✅ 处理完成，新增 {len(chunks)} 个文档块")
+    total_chunks = 0
+    for file_path in new_files:
+        print(f"🔍 处理新文件: {file_path}")
+        documents = load_and_process_documents([file_path])
+        # 强制转为兼容类型
+        documents = [
+            Document(page_content=doc.page_content, metadata=doc.metadata)
+            for doc in documents
+        ]
+        # 清洗 metadata
+        for doc in documents:
+            for k, v in doc.metadata.items():
+                if isinstance(v, (list, dict)):
+                    doc.metadata[k] = str(v)
+        chunks = split_documents(documents)
+        if chunks:
+            db.add_documents(chunks)
+            print(f"✅ 已写入 {len(chunks)} 个文档块: {file_path}")
+            total_chunks += len(chunks)
+        else:
+            print(f"⚠️ 文件无有效内容: {file_path}")
+    print(f"✅ 处理完成，新增 {total_chunks} 个文档块")
 
 def parse_args() -> argparse.Namespace:
     """解析命令行参数"""
