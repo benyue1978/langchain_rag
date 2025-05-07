@@ -24,14 +24,14 @@ A document Q&A system based on LangChain and OpenAI/Zhipu AI/Deepseek, supportin
 
 ## Installation Steps
 
-### 1. Clone the project and enter the directory:
+### 1. Clone the project and enter the directory
 
 ```bash
 git clone <git url>
 cd <directory>
 ```
 
-### 2. Install dependencies:
+### 2. Install dependencies
 
 ```bash
 python -m venv venv
@@ -43,7 +43,7 @@ venv/Scripts/activate # Windows
 pip install -r requirements.txt
 ```
 
-### 3. Configure environment variables:
+### 3. Configure environment variables
 
 - Refer to `.env.sample` to create a `.env` file
 - Add the corresponding API keys as needed:

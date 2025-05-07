@@ -50,9 +50,19 @@
   - [x] 文档字符串补充
   - [x] 代码结构优化
   - [x] 错误处理增强
+- [x] 提取 run_langchain_qa 到单独文件，命令行接口调用新方法
 
 ## 进行中任务
 
+- [ ] Web API 封装
+  - [ ] 用 FastAPI 实现 /ask /login 接口
+  - [ ] 支持无 UI 的 token 验证
+- [ ] 前端静态页面
+  - [ ] 实现最简 HTML 前端，放入 FastAPI static
+  - [ ] 前后端联调
+- [ ] Docker 化
+  - [ ] 编写 Dockerfile 打包后端与前端
+  - [ ] 支持一键部署
 - [ ] 系统功能增强
   - [ ] 实现文档动态加载
   - [ ] 添加文档管理功能
@@ -64,6 +74,7 @@
   - [ ] 批量处理优化
   - [ ] 异步处理支持
   - [ ] 大维度向量优化
+
 
 ## 未来任务
 
@@ -93,6 +104,7 @@
 - ✅ `pdf_processor.py`: PDF 处理器，提供专门的 PDF 文档处理功能
 - ✅ `chinese_text_splitter.py`: 中文文本分割器，基于 jieba 分词实现
 - ✅ `embeddings.py`: 嵌入模型实现，支持多种模型
+- ✅ `qa_core.py`: 核心问答逻辑，供 CLI 和 API 共用
 - ⏳ `requirements.txt`: 项目依赖文件（待更新）
 - ⏳ `README.md`: 项目说明文档（待更新）
 - ⏳ `tests/`: 测试目录（待创建）
