@@ -1,10 +1,10 @@
-# 硬件文档智能问答系统
+# 文档智能问答系统
 
-基于 LangChain 和 OpenAI/智谱 AI 实现的硬件文档智能问答系统，支持中文交互，可以根据用户提问从 PDF 文档中检索相关信息并生成专业的回答。
+基于 LangChain 和 OpenAI/智谱 AI 实现的文档智能问答系统，支持中文交互，可以根据用户提问从 PDF 文档中检索相关信息并生成专业的回答。
 
 ## 功能特点
 
-- 支持 PDF 文档的自动加载和处理
+- 支持多种类型（pdf, doc, docx, txt, md, csv, xls, xlsx, ppt, pptx, epub）文档的自动加载和处理
 - 支持多种嵌入模型：
   - OpenAI text-embedding-ada-002
   - 智谱 AI embedding-3（2048维）
@@ -25,12 +25,14 @@
 ## 安装步骤
 
 1. 克隆项目并进入目录：
+
 ```bash
 git clone git@codeup.aliyun.com:zkz/tools/zkz-ai-rag.git
 cd zkz-ai-rag
 ```
 
-2. 安装依赖：
+1. 安装依赖：
+
 ```bash
 python -m venv venv
 source venv/bin/activate # MacOS
@@ -44,9 +46,10 @@ venv/Scripts/activate # Windows
 pip install -r requirements.txt
 ```
 
-3. 配置环境变量：
+1. 配置环境变量：
    - 参考`.env.sample`，创建 `.env` 文件
    - 根据需要添加相应的 API 密钥：
+
 ```bash
 # OpenAI（可选）
 OPENAI_API_KEY=your-openai-api-key-here
@@ -62,7 +65,7 @@ DEEPSEEK_API_KEY=your-deepseek-api-key-here
 
 ### 1. 准备文档
 
-将需要处理的 PDF 文档放入 `data` 目录（或其他指定目录）中。
+将需要处理的 PDF 文档放入 `data` 目录（或其他指定目录）中，支持子目录。
 
 ### 2. 创建向量数据库
 
@@ -80,7 +83,8 @@ python create_embeddings.py --datadir /path/to/pdf/files
 ```
 
 特点：
-- 自动检测并处理目录中的所有 PDF 文件
+
+- 自动检测并处理目录中的所有支持的文件
 - 支持增量更新，只处理新添加的文档
 - 保留现有的向量数据库内容
 - 根据数据库目录名自动选择嵌入模型
@@ -101,23 +105,26 @@ python qa_interface.py --chromadir chroma_db_zhipuai
 ```
 
 使用说明：
+
 - 输入问题并按回车
 - 输入 'exit' 或 'quit' 退出
 - 输入 'help' 获取帮助
 
 支持的模型：
+
 - OpenAI (默认): 使用 gpt-3.5-turbo 模型
 - DeepSeek: 使用 deepseek-chat 模型
 - 智谱 AI: 使用 embedding-3 模型进行文本嵌入
 
 注意：使用不同的模型需要对应的 API 密钥：
+
 - OpenAI 模型需要设置 `OPENAI_API_KEY` 环境变量
 - DeepSeek 模型需要设置 `DEEPSEEK_API_KEY` 环境变量
 - 智谱 AI 需要设置 `ZHIPUAI_API_KEY` 环境变量
 
 ### 示例问答
 
-```
+```txt
 🤖 硬件文档问答系统
 - 输入问题并按回车
 - 输入 'exit' 或 'quit' 退出
@@ -138,7 +145,7 @@ RL78/F13的LED驱动功能包括8位D/A转换器和内置比较器。该芯片�
 
 ## 项目结构
 
-```
+```dir
 .
 ├── README.md               # 项目说明文档
 ├── requirements.txt        # 项目依赖
@@ -160,7 +167,7 @@ RL78/F13的LED驱动功能包括8位D/A转换器和内置比较器。该芯片�
 
 ## 常见问题
 
-1. **找不到 PDF 文件**
+1. **找不到文件**
    - 确认文件放在正确的目录中
    - 检查文件权限
 

@@ -107,14 +107,14 @@ def init_qa_system(model_type: str = "openai", chroma_dir: str = DEFAULT_CHROMA_
     llm = get_llm(model_type)
     
     # 创建提示模板
-    prompt_template = """你是一个硬件工程师，请根据用户的问题，从文档中检索相关信息并生成回答。
+    prompt_template = """你是一个硬件和体系专家，请根据用户的问题，从文档中检索相关信息并生成回答。
 
 问题: {question}
 
 相关文档内容:
 {context}
 
-请根据以上信息生成专业、准确的回答，并在回答最后给出相应文档名、章节和页码。如果文档中没有相关信息，请明确说明。
+请根据以上信息生成专业、准确的回答，并在回答最后给出相应文档名、章节和页码。如果文档中没有相关信息，用你最好理解回答，请明确说明文档中没有。
 
 回答:"""
 
