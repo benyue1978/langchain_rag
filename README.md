@@ -187,3 +187,14 @@ python create_embeddings.py --model zhipuai --chromadir chroma_db_zhipuai
 # Query
 python qa_interface.py --chromadir chroma_db_zhipuai --model deepseek
 ```
+
+## Web Page
+
+```shell
+uvicorn fastapi_app:app --host 0.0.0.0 --port 8000
+```
+
+```shell
+# Build docker image
+docker buildx build --platform linux/amd64 --push -t registry.cn-shanghai.aliyuncs.com/zhitek/rag-qa-app:latest .
+```

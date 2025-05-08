@@ -1,0 +1,12 @@
+venv
+data
+chroma_db
+chroma_db_openai
+__pycache__
+.pytest_cache
+.git
+.vscode
+*.pyc
+*.pyo
+*.log
+.DS_Store

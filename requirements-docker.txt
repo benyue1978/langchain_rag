@@ -1,0 +1,38 @@
+# 基础依赖（API、文档解析、前端等）
+openai>=1.12.0
+langchain>=0.1.9
+langchain-openai>=0.0.8
+langchain-community>=0.0.24
+langchain-deepseek>=0.0.1
+
+# Terminal interaction
+prompt_toolkit>=3.0.43
+
+# 文档解析（不含深度学习/embedding）
+unstructured>=0.12.4
+pdf2image>=1.17.0
+pdfminer.six>=20250416
+python-magic>=0.4.27
+pillow-heif>=0.22.0
+pi-heif>=0.22.0
+pikepdf>=9.7.0
+google-cloud-vision>=3.10.1
+python-magic-bin>=0.4.14; sys_platform == "win32"
+
+# 向量存储（如只做检索，不做 embedding，可保留）
+chromadb>=0.4.24
+langchain-chroma>=0.1.0
+
+# OCR 相关（如需本地 OCR，可用 tesseract）
+# brew install tesseract
+
+# 工具与辅助包
+python-dotenv>=1.0.1
+typing-extensions>=4.9.0
+pydantic>=2.6.4
+protobuf>=5.0.0,<6.0.0  # Ensure compatibility with opentelemetry-proto
+jieba>=0.42.1
+tiktoken>=0.6.0  # OpenAI token counting
+zhipuai>=1.0.7
+
+# 已移除 embedding/深度学习相关依赖（如 torch、transformers、onnxruntime、unstructured-inference 等） 

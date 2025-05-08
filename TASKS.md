@@ -52,15 +52,16 @@
   - [x] 错误处理增强
 - [x] 提取 run_langchain_qa 到单独文件，命令行接口调用新方法
 - [x] 用 FastAPI 实现 /ask /login 接口，支持无 UI 的 token 验证
+- [x] 实现最简 HTML 前端，放入 FastAPI static
+  - [x] 登录与问答一体化页面
+  - [x] 支持 markdown 渲染
+  - [x] 提交按钮 loading 效果
+  - [x] 前后端联调
+- [x] Docker 化
+  - [x] 编写 Dockerfile 打包后端与前端
 
 ## 进行中任务
 
-- [ ] 前端静态页面
-  - [ ] 实现最简 HTML 前端，放入 FastAPI static
-  - [ ] 前后端联调
-- [ ] Docker 化
-  - [ ] 编写 Dockerfile 打包后端与前端
-  - [ ] 支持一键部署
 - [ ] 系统功能增强
   - [ ] 实现文档动态加载
   - [ ] 添加文档管理功能
@@ -72,7 +73,6 @@
   - [ ] 批量处理优化
   - [ ] 异步处理支持
   - [ ] 大维度向量优化
-
 
 ## 未来任务
 
@@ -104,6 +104,7 @@
 - ✅ `embeddings.py`: 嵌入模型实现，支持多种模型
 - ✅ `qa_core.py`: 核心问答逻辑，供 CLI 和 API 共用
 - ✅ `fastapi_app.py`: FastAPI Web API 实现，含 /ask /login
+- ✅ `static/index.html`: 登录与问答一体化前端页面
 - ⏳ `requirements.txt`: 项目依赖文件（待更新）
 - ⏳ `README.md`: 项目说明文档（待更新）
 - ⏳ `tests/`: 测试目录（待创建）
@@ -112,17 +113,20 @@
 ## 实现细节
 
 ### 架构设计
+
 - 使用 LangChain 框架作为基础
 - 采用 RAG (Retrieval-Augmented Generation) 架构
 - 使用 Chroma 作为向量数据库
 - 支持多种 AI 模型和 embeddings
 
 ### 数据流
+
 1. PDF 文档加载 → 文本分割 → 向量化存储
 2. 用户提问 → 相关文档检索 → 上下文组装 → 模型回答
 3. 评估反馈 → 性能优化 → 系统改进
 
 ### 技术组件
+
 - LangChain
 - OpenAI API
 - 智谱 AI API
@@ -133,6 +137,7 @@
 - LangSmith（用于评估）
 
 ### 环境配置
+
 - Python 3.8+
 - OpenAI API Key（可选）
 - 智谱 AI API Key（可选）

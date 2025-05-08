@@ -3,3 +3,4 @@ venv/
 chroma_db*/
 __pycache__/
 data/
+.DS_Store
