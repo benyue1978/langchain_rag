@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 文档问答系统</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 32px; }
+        h2 { text-align: center; }
+        .hidden { display: none; }
+        label { display: block; margin-top: 16px; }
+        input, textarea { width: 100%; padding: 8px; margin-top: 4px; border-radius: 4px; border: 1px solid #ccc; }
+        button { margin-top: 16px; padding: 10px 24px; border: none; border-radius: 4px; background: #007bff; color: #fff; font-size: 16px; cursor: pointer; }
+        button:disabled { background: #aaa; }
+        .answer { background: #f0f8ff; border-left: 4px solid #007bff; margin-top: 24px; padding: 16px; border-radius: 4px; }
+        .sources { margin-top: 12px; font-size: 14px; color: #555; }
+        .error { color: #c00; margin-top: 12px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h2>AI 文档问答系统</h2>
+    <div id="login-box">
+        <label for="password">登录密码：</label>
+        <input type="password" id="password" autocomplete="current-password">
+        <button id="login-btn">登录</button>
+        <div class="error" id="login-error"></div>
+    </div>
+    <div id="qa-box" class="hidden">
+        <label for="question">请输入您的问题：</label>
+        <textarea id="question" rows="3"></textarea>
+        <button id="ask-btn">提交问题</button>
+        <div class="error" id="ask-error"></div>
+        <div class="answer" id="answer-box" style="display:none;"></div>
+        <div class="sources" id="sources-box" style="display:none;"></div>
+    </div>
+</div>
+<script>
+const loginBox = document.getElementById('login-box');
+const qaBox = document.getElementById('qa-box');
+const loginBtn = document.getElementById('login-btn');
+const askBtn = document.getElementById('ask-btn');
+const loginError = document.getElementById('login-error');
+const askError = document.getElementById('ask-error');
+const answerBox = document.getElementById('answer-box');
+const sourcesBox = document.getElementById('sources-box');
+
+function setToken(token) {
+    localStorage.setItem('qa_token', token);
+}
+function getToken() {
+    return localStorage.getItem('qa_token');
+}
+function showQA() {
+    loginBox.classList.add('hidden');
+    qaBox.classList.remove('hidden');
+}
+function showLogin() {
+    qaBox.classList.add('hidden');
+    loginBox.classList.remove('hidden');
+}
+
+loginBtn.onclick = async function() {
+    loginError.textContent = '';
+    const password = document.getElementById('password').value;
+    if (!password) {
+        loginError.textContent = '请输入密码';
+        return;
+    }
+    loginBtn.disabled = true;
+    try {
+        const res = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        if (!res.ok) {
+            throw new Error('密码错误');
+        }
+        const data = await res.json();
+        setToken(data.token);
+        showQA();
+    } catch (e) {
+        loginError.textContent = e.message || '登录失败';
+    } finally {
+        loginBtn.disabled = false;
+    }
+};
+
+askBtn.onclick = async function() {
+    askError.textContent = '';
+    answerBox.style.display = 'none';
+    sourcesBox.style.display = 'none';
+    const question = document.getElementById('question').value.trim();
+    if (!question) {
+        askError.textContent = '请输入问题';
+        return;
+    }
+    askBtn.disabled = true;
+    const oldText = askBtn.textContent;
+    askBtn.textContent = '提交中...';
+    try {
+        const res = await fetch('/ask', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + getToken()
+            },
+            body: JSON.stringify({ query: question })
+        });
+        if (!res.ok) {
+            if (res.status === 401) {
+                showLogin();
+                throw new Error('登录已失效，请重新登录');
+            }
+            throw new Error('提问失败');
+        }
+        const data = await res.json();
+        answerBox.innerHTML = marked.parse(data.result || '');
+        answerBox.style.display = 'block';
+        if (data.sources && data.sources.length > 0) {
+            sourcesBox.innerHTML = '<b>参考来源：</b><ul>' + data.sources.map(src => {
+                let s = src.source || src.filename || JSON.stringify(src);
+                return `<li>${s}</li>`;
+            }).join('') + '</ul>';
+            sourcesBox.style.display = 'block';
+        } else {
+            sourcesBox.style.display = 'none';
+        }
+    } catch (e) {
+        askError.textContent = e.message || '提问失败';
+    } finally {
+        askBtn.disabled = false;
+        askBtn.textContent = oldText;
+    }
+};
+
+// 自动登录态
+if (getToken()) {
+    showQA();
+}
+</script>
+</body>
+</html> 

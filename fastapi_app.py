@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from qa_core import run_langchain_qa, check_token
 import os
@@ -7,6 +9,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI()
+
+# 挂载静态文件目录
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/static/index.html")
 
 class LoginRequest(BaseModel):
     password: str
