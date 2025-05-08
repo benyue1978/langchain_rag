@@ -88,4 +88,16 @@ def run_langchain_qa(query: str, model_type: str = "openai", chroma_dir: str = D
         chain_type_kwargs={"prompt": PROMPT}
     )
     result = qa_chain.invoke({"query": query})
-    return result 
+    return result
+
+def check_token(token: str) -> bool:
+    """
+    校验 API Token 是否有效。
+    Args:
+        token: 待校验的 token
+    Returns:
+        True 表示有效，False 表示无效
+    """
+    # 这里简单从环境变量读取，实际可扩展为数据库或其它机制
+    valid_token = os.getenv("QA_API_TOKEN", "changeme")
+    return token == valid_token 
