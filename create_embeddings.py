@@ -73,7 +73,7 @@ def get_supported_files(data_dir: str) -> List[str]:
     
     supported_files = []
     for file in data_path.glob("**/*"):
-        if file.suffix in SUPPORTED_EXTENSIONS:
+        if file.suffix in SUPPORTED_EXTENSIONS and not file.name.startswith("~$"):
             supported_files.append(str(file))
     
     if not supported_files:
@@ -124,6 +124,9 @@ def load_and_process_documents(file_paths: List[str]) -> List[Any]:
             else:
                 loader = UnstructuredLoader(path)
             docs = loader.load()
+            if not docs:
+                print(f"⚠️ 文档无内容，跳过: {path}")
+                continue
             print(f"✅ 成功加载文档: {path}")
             all_docs.extend(docs)
         except Exception as e:
@@ -131,20 +134,17 @@ def load_and_process_documents(file_paths: List[str]) -> List[Any]:
     return all_docs
 
 def split_documents(documents: List[Any]) -> List[Any]:
-    """分割文档为较小的块
-    
-    Args:
-        documents: 要分割的文档列表
-        
-    Returns:
-        分割后的文档块列表
-    """
+    if not documents:
+        return []
+    full_text = "\n\n".join(doc.page_content for doc in documents)
+    combined_doc = Document(page_content=full_text, metadata=documents[0].metadata)
+
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
-        separators=["\n\n", "\n", "。", "！", "？", ".", "!", "?"]  # 优化中文分割
+        separators=[""]  # 纯字符切分，禁用按段落分割
     )
-    return splitter.split_documents(documents)
+    return splitter.split_documents([combined_doc])
 
 def create_or_update_vectorstore(data_dir: str, model_provider: str = "openai", chroma_dir: str = DEFAULT_CHROMA_DIR) -> None:
     """创建或更新向量存储
