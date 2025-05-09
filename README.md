@@ -65,6 +65,15 @@ DEEPSEEK_API_KEY=your-deepseek-api-key-here
 
 Place the PDF documents to be processed in the `data` directory (or another specified directory). Subdirectories are supported.
 
+Make sure .doc and .xls converted to .docx and .xls
+
+```shell
+find . -type f -name "*.xls" ! -name "*.xlsx" -execdir soffice --headless --convert-to xlsx "{}" \;
+find . -type f -name "*.doc" ! -name "*.docx" -execdir soffice --headless --convert-to docx "{}" \;
+# 删掉原来文件，做好备份！
+find . -type f \( -iname "*.doc" -o -iname "*.xls" \) -delete
+```
+
 ### 2. Create Vector Database
 
 Run the `create_embeddings.py` script to process documents and create the vector database:
@@ -206,3 +215,7 @@ docker buildx build --platform linux/amd64 --push -t registry.cn-shanghai.aliyun
 3. Upload the updated chroma db files to the server
 4. Restart rag service
 5. Make sure the new db files are mounted into the container
+
+## TODO
+
+Use LLM to convert excel to natural language

@@ -10,6 +10,7 @@ from langchain_chroma import Chroma
 from dotenv import load_dotenv
 from embeddings import ZhipuAIEmbeddings
 from langchain.schema import Document
+from langchain_community.document_loaders import UnstructuredExcelLoader, UnstructuredWordDocumentLoader
 
 # 加载环境变量
 load_dotenv()
@@ -24,7 +25,7 @@ CHUNK_SIZE = 500  # 文档分块大小
 CHUNK_OVERLAP = 50  # 分块重叠大小
 
 # https://docs.unstructured.io/api-reference/supported-file-types
-SUPPORTED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt", ".md", ".csv", ".xls", ".xlsx", ".ppt", ".pptx", ".epub"]
+SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".csv", ".xlsx", ".pptx", ".epub"]
 
 def get_embeddings(model_provider: str) -> Embeddings:
     """获取指定提供商的嵌入模型
@@ -105,21 +106,24 @@ def get_processed_files(chroma_dir: str) -> Set[str]:
     return processed
 
 def load_and_process_documents(file_paths: List[str]) -> List[Any]:
-    """加载并处理PDF文档
+    """加载并处理文档，根据文件类型选择合适的Loader。
     
     Args:
-        pdf_paths: PDF文件路径列表
+        file_paths: 文件路径列表
         
     Returns:
         加载的文档列表
     """
-    all_docs = []
+    all_docs: List[Any] = []
     for path in file_paths:
         try:
             print(f"🔍 加载文档: {path}")
-            loader = UnstructuredLoader(path)
+            suffix = Path(path).suffix.lower()
+            if suffix == ".xlsx" or suffix == ".csv":
+                loader = UnstructuredExcelLoader(path)
+            else:
+                loader = UnstructuredLoader(path)
             docs = loader.load()
-            #print(f"🔍 加载文档: {docs}") # 打印文档内容
             print(f"✅ 成功加载文档: {path}")
             all_docs.extend(docs)
         except Exception as e:
