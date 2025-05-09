@@ -198,3 +198,11 @@ uvicorn fastapi_app:app --host 0.0.0.0 --port 8000
 # Build docker image
 docker buildx build --platform linux/amd64 --push -t registry.cn-shanghai.aliyuncs.com/zhitek/rag-qa-app:latest .
 ```
+
+## Incremental embedding
+
+1. Put new files into data directory
+2. Run create_embeddings.py script
+3. Upload the updated chroma db files to the server
+4. Restart rag service
+5. Make sure the new db files are mounted into the container
